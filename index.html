@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BUILD/BENCH — PC Assembly Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#111315; --panel:#17191cd9; --line:#2b2f33; --ink:#e8e4da; --dim:#8d9298;
+  --acc:#ffb454; --accdim:#b57e33; --ok:#69d48b; --bad:#ff6a5e;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--bg);
+  font-family:"Space Grotesk",sans-serif;color:var(--ink)}
+#c3d{position:fixed;inset:0;display:block;touch-action:none}
+#vignette{position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 130% 100% at 50% 38%,transparent 55%,rgba(0,0,0,.5) 100%)}
+.mono{font-family:"IBM Plex Mono",monospace}
+
+#brand{position:fixed;top:18px;left:22px;z-index:10;user-select:none;pointer-events:none}
+#brand h1{font-size:17px;font-weight:700;letter-spacing:.14em}
+#brand h1 em{font-style:normal;color:var(--acc)}
+#brand p{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--dim);
+  letter-spacing:.22em;margin-top:3px}
+#syschip{position:fixed;top:18px;right:64px;z-index:10;display:flex;gap:8px;align-items:center;
+  border:1px solid var(--line);background:var(--panel);padding:7px 12px;border-radius:3px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em}
+#sysdot{width:8px;height:8px;border-radius:50%;background:#4a4f54;transition:background .3s}
+#iconbtns{position:fixed;top:18px;right:22px;z-index:11;display:flex;flex-direction:column;gap:6px}
+.ibtn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  border:1px solid var(--line);background:var(--panel);border-radius:3px;color:var(--dim);transition:.15s}
+.ibtn:hover{color:var(--acc);border-color:var(--accdim)}
+.ibtn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+
+#steps{position:fixed;left:22px;bottom:22px;z-index:10;width:238px;
+  border:1px solid var(--line);background:var(--panel);border-radius:4px;overflow:hidden;
+  backdrop-filter:blur(6px)}
+#steps header{padding:9px 12px 7px;border-bottom:1px solid var(--line);display:flex;
+  justify-content:space-between;align-items:baseline}
+#steps header b{font-size:11px;letter-spacing:.18em;font-weight:600}
+#steps header span{font-family:"IBM Plex Mono",monospace;font-size:9px;color:var(--dim)}
+#stepList{list-style:none;padding:6px 0}
+#stepList li{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--dim);
+  padding:4px 12px;display:flex;gap:9px;letter-spacing:.04em;cursor:pointer;transition:color .15s}
+#stepList li:hover{color:var(--ink)}
+#stepList li.done{color:#575c60;text-decoration:line-through}
+#stepList li .n{color:var(--accdim);min-width:14px}
+#stepList li.done .n{color:#45494d}
+#stepList li.stamp{color:var(--ok);text-decoration:none;letter-spacing:.2em}
+#disall{display:block;width:100%;border:0;border-top:1px solid var(--line);background:none;
+  color:var(--dim);font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.22em;
+  padding:7px;cursor:pointer}
+#disall:hover{color:var(--bad)}
+
+#info{position:fixed;right:22px;top:66px;bottom:150px;width:308px;z-index:10;
+  border:1px solid var(--line);background:var(--panel);border-radius:4px;backdrop-filter:blur(8px);
+  transform:translateX(360px);transition:transform .35s cubic-bezier(.2,.9,.25,1);
+  display:flex;flex-direction:column}
+#info.open{transform:none}
+#infoHead{padding:14px 16px 12px;border-bottom:1px solid var(--line)}
+#infoEyebrow{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--acc);
+  letter-spacing:.24em;display:flex;justify-content:space-between}
+#infoEyebrow button{background:none;border:0;color:var(--dim);cursor:pointer;font-size:13px;
+  padding:0;line-height:1}
+#infoTitle{font-size:19px;font-weight:700;margin-top:6px;letter-spacing:.02em}
+#infoBody{padding:13px 16px;overflow-y:auto;flex:1}
+#infoBody::-webkit-scrollbar{width:4px}
+#infoBody::-webkit-scrollbar-thumb{background:var(--line)}
+#infoDesc{font-size:12.5px;line-height:1.55;color:#c9c5bb}
+#infoSpecs{margin-top:13px;border-top:1px dashed var(--line)}
+#infoSpecs div{display:flex;justify-content:space-between;padding:6px 0;
+  border-bottom:1px dashed var(--line);font-size:11px}
+#infoSpecs dt{color:var(--dim);font-family:"IBM Plex Mono",monospace;letter-spacing:.06em}
+#infoSpecs dd{text-align:right}
+#infoTip{margin-top:13px;padding:9px 11px;border-left:2px solid var(--acc);
+  background:#ffb45412;font-size:11.5px;line-height:1.5}
+
+#hint{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;color:var(--ink);
+  border:1px solid var(--line);background:var(--panel);padding:8px 16px;border-radius:3px;
+  transition:opacity .25s;white-space:nowrap}
+#hint kbd{color:var(--acc)}
+#toasts{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:20;
+  display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.toast{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;
+  padding:8px 14px;border-radius:3px;border:1px solid var(--line);background:#1b1d20ee;
+  animation:tin .25s cubic-bezier(.2,.9,.3,1);max-width:78vw;text-align:center}
+.toast.warn{border-color:#7a4438;color:#ffb3ab}
+.toast.good{border-color:#3d6b4b;color:#a9e8bc}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1}}
+#nametag{position:fixed;z-index:15;pointer-events:none;display:none;
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;
+  background:#0f1012dd;border:1px solid var(--accdim);color:var(--acc);
+  padding:4px 8px;border-radius:2px;transform:translate(14px,-50%)}
+#cancelpick{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:12;
+  display:none;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.16em;
+  color:var(--bad);border:1px solid #7a4438;background:#211512cc;padding:8px 18px;border-radius:3px;
+  cursor:pointer}
+@media(max-width:900px){#info{width:min(300px,88vw);right:12px}#steps{display:none}}
+</style>
+</head>
+<body>
+<canvas id="c3d"></canvas>
+<div id="vignette"></div>
+
+<div id="brand"><h1>BUILD<em>/</em>BENCH</h1><p>PC ASSEMBLY SIMULATOR · REV 3.2</p></div>
+
+<div id="syschip"><span id="sysdot"></span><span id="systxt">SYSTEM&nbsp;OFF</span></div>
+<div id="iconbtns">
+  <div class="ibtn" id="muteBtn" title="Sound">
+    <svg viewBox="0 0 24 24" id="volIcon"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="wav" d="M16 9a4 4 0 010 6"/></svg>
+  </div>
+  <div class="ibtn" id="helpBtn" title="Help">
+    <svg viewBox="0 0 24 24"><path d="M9 9a3 3 0 115.2 2c-.9.8-2.2 1.3-2.2 2.7"/><path d="M12 17.2v.1"/></svg>
+  </div>
+</div>
+
+<div id="steps">
+  <header><b>BUILD ORDER</b><span id="stepCount">0 / 8</span></header>
+  <ol id="stepList"></ol>
+  <button id="disall">DISASSEMBLE&nbsp;ALL</button>
+</div>
+
+<div id="info">
+  <div id="infoHead">
+    <div id="infoEyebrow"><span id="infoCat">—</span><button id="infoClose">✕</button></div>
+    <div id="infoTitle">—</div>
+  </div>
+  <div id="infoBody">
+    <p id="infoDesc"></p>
+    <dl id="infoSpecs"></dl>
+    <div id="infoTip"></div>
+  </div>
+</div>
+
+<div id="hint">DRAG&nbsp;TO&nbsp;ORBIT&nbsp;·&nbsp;SCROLL&nbsp;TO&nbsp;ZOOM&nbsp;·&nbsp;<kbd>CLICK</kbd>&nbsp;A&nbsp;PART</div>
+<button id="cancelpick">✕&nbsp;&nbsp;RETURN PART</button>
+<div id="toasts"></div>
+<div id="nametag"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+/* ============================ CORE ============================ */
+const canvas=document.getElementById('c3d');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.12;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x131518);
+scene.fog=new THREE.Fog(0x131518,22,70);
+const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,.1,100);
+
+(function(){
+  const es=new THREE.Scene(); es.background=new THREE.Color(0x0a0b0c);
+  const mk=function(w,h,x,y,z,ry,i,c){
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+      new THREE.MeshBasicMaterial({color:c||0xffffff}));
+    m.material.color.multiplyScalar(i); m.position.set(x,y,z); m.rotation.y=ry; es.add(m);
+  };
+  mk(6,4,-6,4,0, Math.PI/2, 6);
+  mk(6,4, 6,4,0,-Math.PI/2, 3);
+  mk(8,4, 0,5,-6, 0, 2, 0xfff2df);
+  mk(10,10,0,-6,0, Math.PI/2, .5);
+  const pm=new THREE.PMREMGenerator(renderer);
+  scene.environment=pm.fromScene(es,.04).texture;
+  pm.dispose();
+})();
+
+scene.add(new THREE.HemisphereLight(0x93a4b8,0x27231e,.38));
+const key=new THREE.DirectionalLight(0xfff1de,1.15);
+key.position.set(-6,10,5);
+key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-12,right:12,top:12,bottom:-12,far:40});
+key.shadow.camera.updateProjectionMatrix();
+key.shadow.bias=-.0006;
+key.shadow.radius=3;
+scene.add(key);
+const rim=new THREE.DirectionalLight(0x6f87ad,.5);
+rim.position.set(6,6,-7); scene.add(rim);
+const pool=new THREE.SpotLight(0xffe6c2,.85,20,.65,.55,1.4);
+pool.position.set(-1,9,2); pool.target.position.set(-1.3,1,0);
+scene.add(pool,pool.target);
+
+/* ---------------- materials + textures ---------------- */
+const Mt={
+  steel:new THREE.MeshStandardMaterial({color:0x2a2d31,roughness:.5,metalness:.85}),
+  alu:new THREE.MeshStandardMaterial({color:0xb6bbc1,roughness:.32,metalness:.95}),
+  alumDark:new THREE.MeshStandardMaterial({color:0x494d52,roughness:.42,metalness:.9}),
+  plastic:new THREE.MeshStandardMaterial({color:0x151618,roughness:.62,metalness:.15}),
+  copper:new THREE.MeshStandardMaterial({color:0xa56a34,roughness:.32,metalness:1}),
+  gold:new THREE.MeshStandardMaterial({color:0xc9a23a,roughness:.35,metalness:1}),
+  nickel:new THREE.MeshStandardMaterial({color:0xc4c9cf,roughness:.25,metalness:1}),
+  wood:new THREE.MeshStandardMaterial({color:0x37322b,roughness:.85})
+};
+
+function ctex(w,h,fn,srgb){
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  fn(c.getContext('2d'),w,h);
+  const t=new THREE.CanvasTexture(c);
+  t.anisotropy=8;
+  if(srgb!==false)t.encoding=THREE.sRGBEncoding;
+  return t;
+}
+const FONT='"IBM Plex Mono",monospace';
+
+const hexTex=ctex(256,256,function(g,w,h){
+  g.fillStyle='#0c0d0e'; g.fillRect(0,0,w,h);
+  g.fillStyle='#000';
+  const r=10;
+  for(let row=0;row<12;row++)for(let col=0;col<12;col++){
+    const x=col*r*3+((row%2)*r*1.5)+4, y=row*r*2.6+4;
+    g.beginPath();
+    for(let k=0;k<6;k++){
+      const a=Math.PI/3*k+Math.PI/6;
+      if(k)g.lineTo(x+r*Math.cos(a)*.82,y+r*Math.sin(a)*.82);
+      else g.moveTo(x+r*Math.cos(a)*.82,y+r*Math.sin(a)*.82);
+    }
+    g.closePath(); g.fill();
+  }
+},false);
+
+function stickerTex(lines,opts){
+  opts=opts||{};
+  const W=opts.w||512,H=opts.h||256;
+  return ctex(W,H,function(g){
+    g.fillStyle=opts.bg||'#17181a'; g.fillRect(0,0,W,H);
+    g.strokeStyle=opts.fg||'#d8d2c4'; g.lineWidth=3;
+    g.strokeRect(8,8,W-16,H-16);
+    g.fillStyle=opts.acc||'#ffb454';
+    if(opts.bar){
+      for(let i=0;i<40;i++){
+        if(Math.random()<.6)
+          g.fillRect(16+i*(W-32)/40,H-30,2+Math.random()*3,16);
+      }
+    }
+    g.fillStyle=opts.fg||'#d8d2c4';
+    lines.forEach(function(ln){
+      g.font=(ln[1]>=18?'700 ':'500 ')+ln[1]+'px '+FONT;
+      g.textAlign='center';
+      g.fillText(ln[0],W/2,ln[2]);
+    });
+  });
+}
+
+let _pcbTex=null;
+function makePcbTex(){
+  if(_pcbTex)return _pcbTex;
+  _pcbTex=ctex(1024,1240,function(g,w,h){
+    g.fillStyle='#101c22'; g.fillRect(0,0,w,h);
+    g.strokeStyle='rgba(120,170,190,.10)'; g.lineWidth=1.4;
+    let seed=9;
+    const rnd=function(){seed=(seed*16807)%2147483647;return seed/2147483647;};
+    for(let i=0;i<190;i++){
+      let x=rnd()*w,y=rnd()*h;
+      g.beginPath(); g.moveTo(x,y);
+      for(let s=0;s<4;s++){
+        const L=30+rnd()*110,d=Math.floor(rnd()*4)*Math.PI/2+(rnd()<.5?Math.PI/4:0);
+        x+=Math.cos(d)*L; y+=Math.sin(d)*L; g.lineTo(x,y);
+      }
+      g.stroke();
+    }
+    for(let i=0;i<260;i++){
+      g.fillStyle='rgba(190,200,205,'+(.08+rnd()*.12)+')';
+      g.beginPath(); g.arc(rnd()*w,rnd()*h,1.6+rnd()*1.6,0,7); g.fill();
+    }
+    g.strokeStyle='rgba(225,232,238,.5)'; g.lineWidth=2;
+    const lbl=function(txt,x,y,s,a){
+      g.fillStyle='rgba(228,235,242,'+(a||.8)+')';
+      g.font='600 '+s+'px '+FONT; g.fillText(txt,x,y);
+    };
+    g.strokeRect(330,340,120,120); lbl('SOCKET',332,332,14);
+    for(let i=0;i<4;i++){g.strokeRect(618,250+i*66,196,40); lbl('DDR5_SLOT'+(i+1),622,268+i*66,13);}
+    g.strokeRect(120,430,300,44); lbl('PCIE5_X16_1',126,420,14);
+    g.strokeRect(120,600,220,44); lbl('PCIE4_X4',126,592,13);
+    lbl('M2A_SB',330,660,13); g.strokeRect(330,610,170,36);
+    g.strokeRect(760,120,220,60); lbl('EPS_8PIN',764,108,13);
+    lbl('VRM PWR STAGE x14',60,320,15,.55);
+    lbl('BCKT REV 3.2 · MADE FOR THE BENCH',60,1190,15,.5);
+  });
+  _pcbTex.anisotropy=16;
+  return _pcbTex;
+}
+
+/* ---------------- shape helpers ---------------- */
+function roundedRectShape(w,h,r){
+  const s=new THREE.Shape(),x=-w/2,y=-h/2;
+  s.moveTo(x+r,y); s.lineTo(x+w-r,y); s.quadraticCurveTo(x+w,y,x+w,y+r);
+  s.lineTo(x+w,y+h-r); s.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  s.lineTo(x+r,y+h); s.quadraticCurveTo(x,y+h,x,y+h-r);
+  s.lineTo(x,y+r); s.quadraticCurveTo(x,y,x+r,y);
+  return s;
+}
+function boxAt(w,h,d,mat,x,y,z){
+  x=x||0;y=y||0;z=z||0;
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+  m.position.set(x,y,z);
+  return m;
+}
+
+function buildFan(size,thick,frameMat,dark){
+  const grp=new THREE.Group();
+  const outer=roundedRectShape(size,size,size*.2);
+  outer.holes.push(new THREE.Path().absarc(0,0,size*.445,0,Math.PI*2,true));
+  const frame=new THREE.Mesh(new THREE.ExtrudeGeometry(outer,
+    {depth:thick*.55,bevelEnabled:false,curveSegments:24}),frameMat);
+  frame.position.z=-thick*.35; grp.add(frame);
+  for(let i=0;i<3;i++){
+    const st=boxAt(size*.42,thick*.11,thick*.05,Mt.plastic,0,0,-thick*.26);
+    st.rotation.z=i*Math.PI*2/3; grp.add(st);
+  }
+  const hub=new THREE.Mesh(new THREE.CylinderGeometry(size*.155,size*.155,thick*.5,24),
+    dark||Mt.plastic);
+  hub.rotation.x=Math.PI/2; hub.position.z=-thick*.02; grp.add(hub);
+  const cap=new THREE.Mesh(new THREE.CircleGeometry(size*.145,24),
+    new THREE.MeshStandardMaterial({
+      map:stickerTex([['⌁ AXIAL-FLOW',22,118],[size>=1.1?'120 mm':'97 mm',17,158]],
+        {bar:true,w:256,h:196}),roughness:.6}));
+  cap.position.z=thick*.2; cap.rotation.y=Math.PI; grp.add(cap);
+  const bl=new THREE.Shape();
+  bl.moveTo(0,0);
+  bl.quadraticCurveTo(size*.30,size*.10,size*.40,size*.02);
+  bl.quadraticCurveTo(size*.30,-size*.16,0,-size*.055);
+  bl.lineTo(0,0);
+  const bg=new THREE.ExtrudeGeometry(bl,{depth:thick*.07,bevelEnabled:false});
+  const rotor=new THREE.Group();
+  for(let i=0;i<7;i++){
+    const b=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({color:0x232529,
+      roughness:.55,metalness:.35,side:THREE.DoubleSide}));
+    b.rotation.z=i*Math.PI*2/7; b.rotation.y=.62;
+    b.translateY(size*.135);
+    b.position.z=thick*.04;
+    rotor.add(b);
+  }
+  grp.add(rotor);
+  grp.userData.rotor=rotor;
+  return grp;
+}
+const FANS=[];
+
+/* ============================ STATIC SET ============================ */
+const world=new THREE.Group(); scene.add(world);
+
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(240,240),
+  new THREE.MeshStandardMaterial({color:0x1a1c1e,roughness:.95}));
+floor.rotation.x=-Math.PI/2; floor.position.y=-.72; floor.receiveShadow=true; world.add(floor);
+
+const desk=boxAt(13.6,.72,7.6,Mt.wood,0,-.36,0);
+desk.receiveShadow=true; desk.castShadow=true; world.add(desk);
+world.add(boxAt(13.7,.05,7.7,Mt.alumDark,0,.015,0));
+
+const BENCH={x:-1.5,z:0};
+(function(){
+  const g=new THREE.Group(); g.position.set(BENCH.x,0,BENCH.z);
+  const legG=new THREE.BoxGeometry(.18,.95,.18);
+  [[-1.62,-1.32],[1.62,-1.32],[-1.62,1.32],[1.62,1.32]].forEach(function(p){
+    const l=new THREE.Mesh(legG,Mt.steel); l.position.set(p[0],.475,p[1]);
+    l.castShadow=true; g.add(l);
+    const ft=new THREE.Mesh(new THREE.CylinderGeometry(.11,.13,.05,16),Mt.plastic);
+    ft.position.set(p[0],.025,p[1]); g.add(ft);
+  });
+  const plate=boxAt(3.5,.09,2.9,Mt.steel,0,1,0);
+  plate.castShadow=true; plate.receiveShadow=true; g.add(plate);
+  const sg=new THREE.CylinderGeometry(.055,.055,.13,12);
+  [[-1.05,-1.28],[1.05,-1.28],[-1.05,1.28],[1.05,1.28],[-.15,.02]].forEach(function(p){
+    const s=new THREE.Mesh(sg,Mt.gold); s.position.set(p[0],1.115,p[1]); g.add(s);
+  });
+  const rail=boxAt(3.5,.14,.16,Mt.steel,0,.72,-1.44);
+  rail.castShadow=true; g.add(rail);
+  const pbRing=new THREE.Mesh(new THREE.TorusGeometry(.11,.028,10,24),
+    new THREE.MeshStandardMaterial({color:0x222222,roughness:.4,metalness:.6,
+      emissive:0x223038,emissiveIntensity:.4}));
+  pbRing.rotation.x=Math.PI/2; pbRing.position.set(1.25,.82,-1.44); g.add(pbRing);
+  const pbCap=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.06,20),
+    new THREE.MeshStandardMaterial({color:0x39424a,roughness:.35,metalness:.7}));
+  pbCap.position.set(1.25,.82,-1.44); g.add(pbCap);
+  world.add(g);
+  window.__powerBtn={ring:pbRing,cap:pbCap};
+})();
+
+const ledStrip=new THREE.Mesh(new THREE.BoxGeometry(3.3,.02,.05),
+  new THREE.MeshStandardMaterial({color:0x111111,emissive:0xffb454,emissiveIntensity:0}));
+ledStrip.position.set(BENCH.x,.95,-1.47); world.add(ledStrip);
+
+/* ---------- Q-Code debug LED ---------- */
+const QCODE={last:'',ctx:null,tex:null};
+(function(){
+  const c=document.createElement('canvas'); c.width=128; c.height=96;
+  QCODE.ctx=c.getContext('2d');
+  QCODE.tex=new THREE.CanvasTexture(c);
+  const m=new THREE.Mesh(new THREE.BoxGeometry(.26,.16,.03),
+    new THREE.MeshBasicMaterial({map:QCODE.tex}));
+  m.position.set(BENCH.x-.6,.76,-1.54); m.rotation.x=-.12; scene.add(m);
+  qcodeDraw('--');
+})();
+function qcodeDraw(s){
+  if(!QCODE.ctx)return;
+  if(QCODE.last===s)return;
+  QCODE.last=s;
+  const g=QCODE.ctx;
+  g.fillStyle='#160806'; g.fillRect(0,0,128,96);
+  g.strokeStyle='#3a1410'; g.lineWidth=3; g.strokeRect(3,3,122,90);
+  g.font='700 56px '+FONT; g.textAlign='center'; g.textBaseline='middle';
+  g.shadowColor='#ff2e1e'; g.shadowBlur=14;
+  g.fillStyle='#ff4530'; g.fillText(s,64,52);
+  g.shadowBlur=0;
+  QCODE.tex.needsUpdate=true;
+}
+
+/* ---------- parts mat + tray stations ---------- */
+const MW=4.3,MD=5.8,MCX=3.55,MCZ=.55;
+const TRAYS={
+  motherboard:{p:[2.70,.026, 1.05], he:[1.24,1.52], n:'01 · MOTHERBOARD'},
+  cpu:        {p:[2.70,.012, 3.02], he:[.36,.36],   n:'02 · PROCESSOR'},
+  cooler:     {p:[4.62,.020, 1.72], he:[.52,.78],   n:'03 · CPU COOLER'},
+  ram1:       {p:[4.30,.012,  .08], he:[.21,.70],   n:'04A · DIMM A2'},
+  ram2:       {p:[4.95,.012,  .08], he:[.21,.70],   n:'04B · DIMM B2'},
+  gpu:        {p:[2.85,.000,-1.45], he:[1.42,.25],  n:'05 · GRAPHICS CARD'},
+  ssd:        {p:[4.75,.012,-1.45], he:[.45,.16],   n:'06 · NVMe SSD'},
+  psu:        {p:[4.60,.000, 3.00], he:[.74,.40],   n:'07 · POWER SUPPLY'}
+};
+function qYaw(a){return new THREE.Quaternion().setFromEuler(new THREE.Euler(0,a,0));}
+const PSU_DOCK=new THREE.Vector3(.35,0,2.45);
+
+(function(){
+  const CW=Math.round(1024*MD/MW),CH=1024;
+  const cv=document.createElement('canvas'); cv.width=CW; cv.height=CH;
+  const g=cv.getContext('2d');
+  g.fillStyle='#141618'; g.fillRect(0,0,CW,CH);
+  const fx=function(wx){return (wx-(MCX-MW/2))*CW/MW;};
+  const fy=function(wz){return (wz-(MCZ-MD/2))*CH/MD;};
+  Object.keys(TRAYS).forEach(function(k){
+    const t=TRAYS[k];
+    const cx=fx(t.p[0]),cy=fy(t.p[2]);
+    const hw=t.he[0]*CW/MW,hh=t.he[1]*CH/MD;
+    g.strokeStyle='#2c3033'; g.lineWidth=3;
+    g.strokeRect(cx-hw,cy-hh,hw*2,hh*2);
+    g.fillStyle='#7e8489'; g.font='600 24px '+FONT;
+    g.fillText(t.n,cx-hw+12,cy-hh+34);
+  });
+  g.font='500 20px '+FONT; g.fillStyle='#565b60';
+  g.fillText('ESD-SAFE · HANDLE BY EDGES · GROUND YOURSELF',24,CH-24);
+  const tex=new THREE.CanvasTexture(cv);
+  tex.encoding=THREE.sRGBEncoding; tex.anisotropy=16;
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(MW,MD),
+    new THREE.MeshStandardMaterial({map:tex,roughness:.96}));
+  m.rotation.x=-Math.PI/2; m.position.set(MCX,.012,MCZ);
+  m.receiveShadow=true; world.add(m);
+})();
+
+/* keyboard prop */
+(function(){
+  const kb=new THREE.Group();
+  kb.add(boxAt(1.7,.05,.56,new THREE.MeshStandardMaterial({color:0x1b1d20,roughness:.55}),0,0,0));
+  kb.add(boxAt(1.5,.02,.4,new THREE.MeshStandardMaterial({color:0x24272b,roughness:.6}),0,.035,0));
+  kb.position.set(.5,.03,-2.95); kb.rotation.y=.28; scene.add(kb);
+})();
+
+/* ============================ PART BUILDERS ============================ */
+function buildMotherboard(){
+  const g=new THREE.Group();
+  const pcb=new THREE.Mesh(new THREE.BoxGeometry(2.44,.05,3.05),
+    new THREE.MeshStandardMaterial({map:makePcbTex(),roughness:.55,metalness:.15}));
+  pcb.castShadow=true; pcb.receiveShadow=true; g.add(pcb);
+
+  const sk=new THREE.Group(); sk.position.set(.05,.045,-.2);
+  const frame=new THREE.Mesh(new THREE.BoxGeometry(.74,.05,.74),Mt.nickel);
+  frame.position.y=.02; sk.add(frame);
+  const pins=new THREE.Mesh(new THREE.PlaneGeometry(.5,.5),
+    new THREE.MeshStandardMaterial({map:ctex(128,128,function(gg,w,h){
+      gg.fillStyle='#5d5330'; gg.fillRect(0,0,w,h);
+      gg.fillStyle='#d9b64f';
+      for(let i=4;i<w;i+=8)for(let j=4;j<h;j+=8){
+        gg.beginPath(); gg.arc(i,j,1.8,0,7); gg.fill();
+      }
+    },false),roughness:.4,metalness:.9}));
+  pins.rotation.x=-Math.PI/2; pins.position.y=.048; sk.add(pins);
+  const lev=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,.5,8),Mt.plastic);
+  lev.position.set(-.44,.13,.3); lev.rotation.z=.5; sk.add(lev);
+  g.add(sk);
+
+  for(let i=0;i<4;i++){
+    const sx=.63+i*.175;
+    g.add(boxAt(.075,.09,1.36,
+      new THREE.MeshStandardMaterial({color:i%2?0x212428:0x17191c,roughness:.5}),sx,.095,.32));
+    g.add(boxAt(.09,.13,.06,
+      new THREE.MeshStandardMaterial({color:0xd8dee4,roughness:.3,metalness:.5}),sx,.11,-.38));
+    g.add(boxAt(.075,.1,.05,Mt.plastic,sx,.1,.985));
+  }
+
+  const slotMat=new THREE.MeshStandardMaterial({color:0x191c1e,roughness:.5});
+  g.add(boxAt(1.9,.075,.09,slotMat,.15,.10,-.55));
+  g.add(boxAt(1.9,.11,.13,Mt.nickel,.15,.105,-.55));
+  g.add(boxAt(1.3,.07,.08,slotMat,-.15,.10,.05));
+  g.add(boxAt(.35,.07,.075,slotMat,-.85,.10,.5));
+
+  g.add(boxAt(.06,.05,.28,Mt.steel,.24,.075,.335));
+  g.add(boxAt(.86,.012,.3,new THREE.MeshStandardMaterial({color:0x22292e,roughness:.6}),-.13,.062,.335));
+
+  function finBlock(x,z,wid,n){
+    const fb=new THREE.Group(); fb.position.set(x,.1,z);
+    const im=new THREE.InstancedMesh(new THREE.BoxGeometry(wid,.09,.008),Mt.alu,n);
+    const m4=new THREE.Matrix4();
+    for(let i=0;i<n;i++){m4.setPosition(0,0,(i-(n-1)/2)*.055); im.setMatrixAt(i,m4);}
+    im.castShadow=true; fb.add(im);
+    fb.add(boxAt(wid,.035,n*.055+.1,Mt.alumDark,0,-.02,0));
+    g.add(fb);
+  }
+  finBlock(-.62,-.75,.62,12);
+  finBlock(-.92,-.2,.34,14);
+  finBlock(.62,.83,.66,12);
+
+  const io=new THREE.Group(); io.position.set(-1.23,.11,.1);
+  io.add(boxAt(.16,.12,1.5,Mt.alumDark,0,0,0));
+  const usbs=['#25303f','#25303f','#25303f','#f0c33c','#ef7f3a'];
+  for(let i=0;i<5;i++){
+    io.add(boxAt(.17,.055,.13,
+      new THREE.MeshStandardMaterial({color:new THREE.Color(usbs[i]),roughness:.6}),
+      -.005,.005,-.62+i*.3));
+  }
+  for(let i=0;i<3;i++){
+    const jk=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.05,10),
+      new THREE.MeshStandardMaterial({color:i===1?0x3fae6a:0x76d0e8,roughness:.5}));
+    jk.rotation.z=Math.PI/2; jk.position.set(-.02,-.035,.85+i*.11); io.add(jk);
+  }
+  g.add(io);
+
+  g.add(boxAt(.28,.16,.6,Mt.plastic,1.13,.135,.45));
+  const eps=boxAt(.5,.16,.24,Mt.plastic,-1.05,.135,-1.3);
+  eps.rotation.y=Math.PI/2; g.add(eps);
+  g.add(boxAt(.3,.05,.26,Mt.plastic,-.75,.07,1.32));
+  const bat=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.035,20),
+    new THREE.MeshStandardMaterial({color:0xd9dde2,roughness:.3,metalness:.9}));
+  bat.position.set(.98,.085,1.24); g.add(bat);
+  const caps=new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(.022,.022,.07,8),
+    new THREE.MeshStandardMaterial({color:0x565d63,roughness:.4,metalness:.85}),26);
+  const cm=new THREE.Matrix4(); let ci=0;
+  const put=function(x,z){if(ci<26){cm.setPosition(x,.075,z);caps.setMatrixAt(ci++,cm);}};
+  for(let i=0;i<6;i++)put(-.5+i*.14,-.62);
+  for(let i=0;i<6;i++)put(-.5+i*.14,.62);
+  for(let i=0;i<5;i++)put(-.35+i*.13,.9);
+  for(let i=0;i<6;i++)put(-.85+i*.13,1.15);
+  for(let i=0;i<3;i++)put(1-i*.1,-.95);
+  caps.count=ci; caps.instanceMatrix.needsUpdate=true; caps.castShadow=true; g.add(caps);
+  return g;
+}
+
+function buildCPU(){
+  const g=new THREE.Group();
+  g.add(boxAt(.62,.055,.62,new THREE.MeshStandardMaterial({color:0x14351e,roughness:.5}),0,.028,0));
+  const ihs=new THREE.Mesh(
+    new THREE.ExtrudeGeometry(roundedRectShape(.52,.52,.05),
+      {depth:.06,bevelEnabled:true,bevelThickness:.012,bevelSize:.012,bevelSegments:2}),
+    Mt.nickel);
+  ihs.rotation.x=-Math.PI/2; ihs.position.y=.083; ihs.castShadow=true; g.add(ihs);
+  const lid=new THREE.Mesh(new THREE.PlaneGeometry(.5,.5),
+    new THREE.MeshStandardMaterial({
+      map:stickerTex([
+        ['AX-9700F',46,88],
+        ['8C / 16T · 4.7 GHz',20,140],
+        ['SR9XF · MADE IN SILICON VALLEY',12,182]
+      ],{w:300,h:210,fg:'#3a3d40',bg:'#ccd0d4'}),roughness:.32,metalness:.85}));
+  lid.rotation.x=-Math.PI/2; lid.position.y=.162; g.add(lid);
+  const pads=new THREE.Mesh(new THREE.PlaneGeometry(.56,.56),
+    new THREE.MeshStandardMaterial({map:ctex(96,96,function(gg,w,h){
+      gg.fillStyle='#c8a53e'; gg.fillRect(0,0,w,h);
+      gg.fillStyle='#7c6522';
+      for(let i=6;i<w;i+=8)for(let j=6;j<h;j+=8)gg.fillRect(i,j,3,3);
+    },false),roughness:.35,metalness:1}));
+  pads.rotation.x=Math.PI/2; pads.position.y=.002; g.add(pads);
+  return g;
+}
+
+function buildCooler(){
+  const g=new THREE.Group();
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(.3,.34,.1,20),Mt.copper);
+  base.position.y=.05; g.add(base);
+  for(let i=0;i<4;i++){
+    const zz=-.21+i*.14;
+    const c=new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0,0,zz),
+      new THREE.Vector3(.02,.5,zz),
+      new THREE.Vector3(.02,.95,zz),
+      new THREE.Vector3(0,1.25,zz*.3),
+      new THREE.Vector3(-.02,1.38,-zz*.35),
+      new THREE.Vector3(0,1.25,-zz*.7)
+    ]);
+    const t=new THREE.Mesh(new THREE.TubeGeometry(c,32,.045,10),
+      new THREE.MeshStandardMaterial({color:0xb9bec6,roughness:.28,metalness:1}));
+    t.castShadow=true; g.add(t);
+  }
+  const fins=new THREE.InstancedMesh(new THREE.BoxGeometry(.78,.85,.012),Mt.alu,24);
+  const fm=new THREE.Matrix4();
+  for(let i=0;i<24;i++){fm.setPosition(0,.85,.38+i*.028); fins.setMatrixAt(i,fm);}
+  fins.castShadow=true; g.add(fins);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(.8,.03,.86),
+    new THREE.MeshStandardMaterial({
+      map:stickerTex([['GUSTAV GH-620',30,64],['DUAL TOWER · 245 W',17,104]],
+        {w:384,h:144,fg:'#e6e2d8'}),roughness:.4,metalness:.8}));
+  top.position.set(0,1.29,.67); top.rotation.x=Math.PI/2; top.castShadow=true; g.add(top);
+  const fan=buildFan(1.1,.3,Mt.plastic);
+  fan.rotation.y=Math.PI; fan.position.set(0,.85,-.08);
+  g.add(fan); FANS.push(fan);
+  g.add(boxAt(.86,.03,.03,Mt.steel,0,1.28,.1));
+  g.add(boxAt(.86,.03,.03,Mt.steel,0,.45,.1));
+  return g;
+}
+
+const RAMBARS=[];
+function buildRAM(stickIndex){
+  const g=new THREE.Group();
+  g.add(boxAt(1.33,.04,.36,new THREE.MeshStandardMaterial({color:0x101418,roughness:.5}),0,.02,0));
+  const fingers=new THREE.Mesh(new THREE.BoxGeometry(1.28,.028,.3),Mt.gold);
+  fingers.position.y=.002; g.add(fingers);
+  const spr=new THREE.Shape();
+  spr.moveTo(-.67,0); spr.lineTo(-.60,.3); spr.lineTo(.60,.3); spr.lineTo(.67,0); spr.closePath();
+  const sm=new THREE.Mesh(new THREE.ExtrudeGeometry(spr,{depth:.3,bevelEnabled:false}),
+    new THREE.MeshStandardMaterial({color:0x2b2e33,roughness:.35,metalness:.9}));
+  sm.rotation.x=-Math.PI/2; sm.position.set(0,.045,-.15); sm.castShadow=true; g.add(sm);
+  const label=new THREE.Mesh(new THREE.PlaneGeometry(.95,.2),
+    new THREE.MeshStandardMaterial({
+      map:stickerTex([
+        ['DDR5-6000 '+(stickIndex?'B2':'A2'),24,54],
+        ['16 GB · CL30-36-36',16,96]
+      ],{w:400,h:120,fg:'#dad4c6'}),roughness:.5}));
+  label.rotation.x=-Math.PI/2; label.position.set(0,.35,0); g.add(label);
+  const barMat=new THREE.MeshStandardMaterial({color:0xe8e6df,roughness:.4,
+    emissive:0x000000,emissiveIntensity:0});
+  const bar=new THREE.Mesh(new THREE.BoxGeometry(1.3,.09,.3),barMat);
+  bar.position.y=.39; g.add(bar);
+  RAMBARS.push(barMat);
+  g.add(boxAt(.03,.05,.37,Mt.plastic,-.55,.045,0));
+  return g;
+}
+
+let GPUSTRIP=null;
+function buildGPU(){
+  const g=new THREE.Group();
+  const L=2.75,T=.46,H=1.18;
+  const bodyGeo=new THREE.ExtrudeGeometry(roundedRectShape(L,T,.12),
+    {depth:H*.62,bevelEnabled:false,curveSegments:6});
+  bodyGeo.translate(0,-T/2,-H*.31);
+  const body=new THREE.Mesh(bodyGeo,Mt.plastic); body.castShadow=true; g.add(body);
+  g.add(boxAt(L,.02,H*.9,new THREE.MeshStandardMaterial({color:0x101418,roughness:.55}),0,H*.31+.01,0));
+  const topFace=new THREE.Mesh(new THREE.PlaneGeometry(L-.14,.4),
+    new THREE.MeshStandardMaterial({
+      map:stickerTex([
+        ['VORTEX RTX-4870',42,86],
+        ['12 GB GDDR6X · PCI-E 5.0',18,132]
+      ],{w:1024,h:192,fg:'#e4dfd2'}),roughness:.4,metalness:.6}));
+  topFace.rotation.x=-Math.PI/2; topFace.position.set(0,H*.62+.005,-T*.18); g.add(topFace);
+  const glowStripe=new THREE.Mesh(new THREE.BoxGeometry(L-.2,.035,.02),
+    new THREE.MeshStandardMaterial({color:0x111111,emissive:0xffb454,emissiveIntensity:0}));
+  glowStripe.position.set(0,H*.62+.02,T*.14); g.add(glowStripe);
+  GPUSTRIP=glowStripe.material;
+  [-L*.24,L*.24].forEach(function(fx){
+    const f=buildFan(.92,.26,Mt.plastic);
+    f.position.set(fx,H*.45,H*.28); g.add(f); FANS.push(f);
+    const rim2=new THREE.Mesh(new THREE.TorusGeometry(.44,.028,10,28),Mt.alumDark);
+    rim2.position.copy(f.position).add(new THREE.Vector3(0,0,.02)); g.add(rim2);
+  });
+  g.add(boxAt(L*.36,.028,.1,Mt.gold,-L*.32,.014,0));
+  g.add(boxAt(L*.56,.028,.1,Mt.gold,L*.20,.014,0));
+  const br=new THREE.Mesh(new THREE.BoxGeometry(.05,H*.72,T),
+    new THREE.MeshStandardMaterial({color:0xc2c7cd,roughness:.35,metalness:.9,map:hexTex}));
+  br.position.set(-L/2-.02,H*.36,0); br.castShadow=true; g.add(br);
+  for(let i=0;i<4;i++){
+    g.add(boxAt(.06,.09,.16,
+      new THREE.MeshStandardMaterial({
+        color:new THREE.Color(i===2?0xe8e8e8:0x242629),roughness:.6}),
+      -L/2-.03,H*.2+i*(H*.14),-T*.18+i*.06));
+  }
+  g.add(boxAt(.22,.07,.2,Mt.plastic,-L/2+.5,H*.62+.03,T*.12));
+  return g;
+}
+
+function buildSSD(){
+  const g=new THREE.Group();
+  g.add(boxAt(.8,.028,.22,new THREE.MeshStandardMaterial({color:0x14251c,roughness:.5}),0,.014,0));
+  const lbl=new THREE.Mesh(new THREE.PlaneGeometry(.68,.16),
+    new THREE.MeshStandardMaterial({
+      map:stickerTex([
+        ['NVM-4 METEOR',26,52],
+        ['1 TB · GEN4 x4 · 7400 MB/s',15,92]
+      ],{w:512,h:120,fg:'#d9d3c5'}),roughness:.55}));
+  lbl.rotation.x=-Math.PI/2; lbl.position.y=.031; g.add(lbl);
+  const chipM=new THREE.MeshStandardMaterial({color:0x232323,roughness:.4});
+  g.add(boxAt(.13,.02,.15,chipM,.22,.03,0));
+  g.add(boxAt(.13,.02,.15,chipM,-.05,.03,0));
+  g.add(boxAt(.07,.02,.18,Mt.gold,.39,.012,0));
+  g.add(boxAt(.02,.024,.19,Mt.plastic,.365,.012,0));
+  return g;
+}
+
+function buildPSU(){
+  const g=new THREE.Group();
+  const L=1.5,H=.86,Wd=1.4;
+  const shell=new THREE.Mesh(new THREE.BoxGeometry(L,H,Wd),
+    new THREE.MeshStandardMaterial({color:0x121315,roughness:.55,metalness:.35}));
+  shell.castShadow=true; shell.position.y=H/2; g.add(shell);
+  const hexM=new THREE.MeshStandardMaterial({map:hexTex,roughness:.6,metalness:.3});
+  const grill1=new THREE.Mesh(new THREE.PlaneGeometry(Wd*.8,Wd*.8),hexM);
+  grill1.rotation.x=-Math.PI/2; grill1.position.set(-.08,H+.005,0); g.add(grill1);
+  const pf=buildFan(.8,.18,new THREE.MeshStandardMaterial({color:0x1a1c1e,roughness:.6}));
+  pf.rotation.x=-Math.PI/2; pf.position.set(-.08,H-.12,0); g.add(pf); FANS.push(pf);
+  const lab=new THREE.Mesh(new THREE.PlaneGeometry(1.3,.62),
+    new THREE.MeshStandardMaterial({
+      map:stickerTex([
+        ['VOLTA V-850',40,62],
+        ['850 W · 80 PLUS GOLD',20,110],
+        ['+12V 70A  +5V 22A  +3.3V 20A',15,152]
+      ],{w:900,h:380,fg:'#ddd6c6'}),roughness:.6}));
+  lab.rotation.x=-Math.PI/2; lab.position.set(.06,H+.006,.2); lab.rotation.z=.06; g.add(lab);
+  const ex=new THREE.Mesh(new THREE.PlaneGeometry(H*.72,H*.72),hexM);
+  ex.rotation.y=Math.PI/2; ex.position.set(-L/2-.004,H/2,-.1); g.add(ex);
+  const sock=new THREE.Mesh(new THREE.BoxGeometry(.02,.22,.28),
+    new THREE.MeshStandardMaterial({color:0x0c0d0e,roughness:.5}));
+  sock.position.set(-L/2-.01,H/2,.42); g.add(sock);
+  g.add(boxAt(.03,.12,.08,Mt.plastic,-L/2-.02,H/2,.12));
+  const mp=new THREE.Mesh(new THREE.PlaneGeometry(H*.7,Wd*.5),
+    new THREE.MeshStandardMaterial({map:ctex(160,220,function(gg,w,h){
+      gg.fillStyle='#181a1c'; gg.fillRect(0,0,w,h);
+      gg.fillStyle='#000';
+      for(let y=14;y<h;y+=44)for(let x=14;x<w;x+=52)gg.fillRect(x,y,26,20);
+    },false),roughness:.6}));
+  mp.rotation.y=Math.PI/2; mp.position.set(L/2+.004,H/2,0); g.add(mp);
+  const stubM=new THREE.MeshStandardMaterial({color:0x141516,roughness:.9});
+  [.42,-.42].forEach(function(z){
+    const st=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.22,10),stubM);
+    st.rotation.z=Math.PI/2; st.position.set(L/2+.1,H/2,z); g.add(st);
+  });
+  return g;
+}
+
+/* ============================ REGISTRY ============================ */
+const MO=new THREE.Vector3(BENCH.x,1.205,0);
+function mbA(rx,ry,rz){return new THREE.Vector3(MO.x+rx,MO.y+ry,MO.z+rz);}
+
+const DEFS=[
+ {id:'motherboard',name:'Motherboard',short:'MOTHERBOARD',cat:'FOUNDATION',
+  desc:'The backbone everything plugs into. Its copper traces carry data between the CPU, memory and expansion slots; the chipset manages I/O traffic, the VRM stages deliver clean power to the processor, and a small flash chip stores the UEFI firmware that wakes the machine.',
+  specs:[['Form factor','ATX 305 × 244 mm'],['Socket','AX-9700 (PGA)'],['Memory','4 × DDR5, up to 6000 MT/s'],['Expansion','PCIe 5.0 x16 + x4'],['Storage','1 × M.2 NVMe Gen4']],
+  tip:'Line it up over the standoffs and lower it straight down — never drag it across pins. It must be the FIRST part in, and the LAST part out.',
+  build:buildMotherboard,
+  anchor:{pos:mbA(0,0,0)},
+  tray:new THREE.Vector3(TRAYS.motherboard.p[0],TRAYS.motherboard.p[1],TRAYS.motherboard.p[2])},
+ {id:'cpu',name:'Processor (CPU)',short:'PROCESSOR',cat:'COMPUTE',
+  desc:'The machine’s brain: billions of transistors fetching, decoding and executing instructions every cycle. Every keystroke, frame and packet passes through it. This model sports 8 cores / 16 threads and integrated graphics.',
+  specs:[['Model','AX-9700F Octafall'],['Cores / Threads','8 / 16'],['Boost clock','4.7 GHz'],['TDP','105 W'],['Graphics','Integrated DX-770']],
+  tip:'Align the gold triangle with the socket corner, drop it in with ZERO force, lock the lever. Booting without it: fans may twitch, but the screen stays black.',
+  build:buildCPU,
+  anchor:{pos:mbA(.05,.095,-.2)},
+  tray:new THREE.Vector3(TRAYS.cpu.p[0],TRAYS.cpu.p[1],TRAYS.cpu.p[2])},
+ {id:'cooler',name:'CPU Cooler',short:'COOLER',cat:'THERMAL',
+  desc:'Heat is the enemy of silicon. This tower cooler presses a copper cold plate onto the CPU lid; heat travels up nickel-plated heatpipes into an aluminum fin stack where a 120 mm fan pushes cool air through. Without it, the CPU hits its thermal limit in seconds.',
+  specs:[['Type','Tower, 4 heatpipes'],['Rated capacity','245 W TDP'],['Fan','120 mm, PWM'],['Noise','26 dBA'],['Mount','Back-less clip']],
+  tip:'Install AFTER the CPU; removing the CPU later requires taking the cooler off first. Try booting without it and watch the temperature readout climb on the monitor.',
+  build:buildCooler,
+  anchor:{pos:mbA(.05,.26,-.2)},
+  tray:new THREE.Vector3(TRAYS.cooler.p[0],TRAYS.cooler.p[1],TRAYS.cooler.p[2])},
+ {id:'ram1',name:'Memory Stick A2',short:'DIMM A2',cat:'MEMORY',ram:true,
+  desc:'System memory is the CPU’s scratchpad — fast volatile storage for whatever program is actively running. Contents vanish the instant power is cut, unlike your SSD.',
+  specs:[['Kit','32 GB (2 × 16 GB) DDR5'],['Speed','6000 MT/s'],['Latency','CL30-36-36'],['Bandwidth','≈ 96 GB/s dual-channel']],
+  tip:'Seats in the SECOND slot from the CPU (A2) until both latches CLICK. Missing memory produces the famous 3-beep POST code — with matching on-screen error.',
+  build:function(){return buildRAM(0);},
+  anchor:{pos:mbA(.805,.07,.32),quat:null},
+  trayQ:null,
+  tray:new THREE.Vector3(TRAYS.ram1.p[0],TRAYS.ram1.p[1],TRAYS.ram1.p[2])},
+ {id:'ram2',name:'Memory Stick B2',short:'DIMM B2',cat:'MEMORY',ram:true,
+  desc:'The second half of the dual-channel kit. The memory controller addresses paired sticks in parallel, effectively doubling peak bandwidth.',
+  specs:[['Kit','32 GB (2 × 16 GB) DDR5'],['Speed','6000 MT/s'],['Latency','CL30-36-36'],['Channel','B']],
+  tip:'Mirror-slot pairs (A2+B2) unlock dual-channel. One stick boots fine but the POST report flags single-channel operation.',
+  build:function(){return buildRAM(1);},
+  anchor:{pos:mbA(1.155,.07,.32),quat:null},
+  trayQ:null,
+  tray:new THREE.Vector3(TRAYS.ram2.p[0],TRAYS.ram2.p[1],TRAYS.ram2.p[2])},
+ {id:'ssd',name:'M.2 NVMe SSD',short:'NVMe SSD',cat:'STORAGE',
+  desc:'Your operating system, programs and files live here — permanently. Sitting directly on the PCIe bus, it moves roughly twelve times the data of an old SATA drive.',
+  specs:[['Capacity','1 TB TLC'],['Interface','PCIe 4.0 ×4 NVMe'],['Seq. read','7,400 MB/s'],['Form','M.2 2280']],
+  tip:'Insert at a 30° angle, press flat, secure the screw. POST succeeds without it — then you meet the classic Reboot-and-Select-Boot-Device halt.',
+  build:buildSSD,
+  anchor:{pos:mbA(-.13,.068,.335)},
+  tray:new THREE.Vector3(TRAYS.ssd.p[0],TRAYS.ssd.p[1],TRAYS.ssd.p[2])},
+ {id:'gpu',name:'Graphics Card',short:'GRAPHICS CARD',cat:'GRAPHICS',
+  desc:'A specialized parallel computer for pixels: thousands of shader cores turn triangles and textures into frames at breathtaking speed. Games, 3D renders and AI models all live here.',
+  specs:[['Model','VORTEX RTX-4870'],['Memory','12 GB GDDR6X'],['Bus','PCIe 5.0 ×16'],['Power','1 × 8-pin, 220 W'],['Outputs','3 × DP, HDMI']],
+  tip:'Push down until the slot latch clicks. Without it, the CPU’s integrated graphics take over — the POST report will say so.',
+  build:buildGPU,
+  anchor:{pos:mbA(.30,.12,-.55),quat:null},
+  tray:new THREE.Vector3(TRAYS.gpu.p[0],TRAYS.gpu.p[1],TRAYS.gpu.p[2])},
+ {id:'psu',name:'Power Supply',short:'POWER SUPPLY',cat:'POWER',
+  desc:'Converts dangerous mains AC into tame DC rails (+12 V, +5 V, +3.3 V) feeding every part. An undersized unit causes random crashes under load; this 850 W Gold unit has headroom to spare.',
+  specs:[['Output','850 W continuous'],['Efficiency','80 PLUS GOLD'],['Rails','+12 V @ 70 A'],['Cooling','120 mm, hybrid'],['Modularity','Fully modular']],
+  tip:'Here it docks on the desk. No PSU means pressing power does absolutely nothing — the most confusing fault in real building.',
+  build:buildPSU,
+  anchor:{pos:PSU_DOCK.clone()},
+  tray:new THREE.Vector3(TRAYS.psu.p[0],TRAYS.psu.p[1],TRAYS.psu.p[2])}
+];
+DEFS[3].anchor.quat=qYaw(Math.PI/2); DEFS[3].trayQ=qYaw(Math.PI/2);
+DEFS[4].anchor.quat=qYaw(Math.PI/2); DEFS[4].trayQ=qYaw(Math.PI/2);
+DEFS[6].anchor.quat=new THREE.Quaternion();
+DEFS.forEach(function(d){
+  if(!d.anchor.quat)d.anchor.quat=new THREE.Quaternion();
+  if(!d.trayQ)d.trayQ=new THREE.Quaternion();
+});
+
+const PARTS=[]; const byId={};
+DEFS.forEach(function(def){
+  const obj=def.build();
+  obj.traverse(function(o){
+    if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}
+    o.userData.pid=def.id;
+  });
+  obj.position.copy(def.tray);
+  obj.quaternion.copy(def.trayQ);
+  scene.add(obj);
+  const p={def:def,obj:obj,state:'tray'};
+  PARTS.push(p); byId[def.id]=p;
+});
+
+/* cables */
+const cables=[];
+(function(){
+  const sleeve=new THREE.MeshStandardMaterial({color:0x141517,roughness:.92});
+  const ps=new THREE.Vector3(PSU_DOCK.x,.52,PSU_DOCK.z);
+  const mk=function(pts,id){
+    const c=new THREE.CatmullRomCurve3(pts);
+    const m=new THREE.Mesh(new THREE.TubeGeometry(c,64,.045,10,false),sleeve);
+    m.castShadow=true; m.visible=false; scene.add(m);
+    cables.push({mesh:m,need:id});
+  };
+  mk([ps.clone().add(new THREE.Vector3(.1,0,.4)),
+      new THREE.Vector3(2.2,1.5,1.4),new THREE.Vector3(1.6,2.1,.6),
+      new THREE.Vector3(.7,1.6,.4),
+      MO.clone().add(new THREE.Vector3(1.08,.15,.45))],'atx');
+  mk([ps.clone().add(new THREE.Vector3(.1,0,-.4)),
+      new THREE.Vector3(2.0,1.2,-.6),new THREE.Vector3(.8,1.9,-1.6),
+      new THREE.Vector3(-2.3,2.0,-1.7),
+      MO.clone().add(new THREE.Vector3(-1.0,.15,-1.3))],'eps');
+  const gt=byId.gpu.def.anchor.pos;
+  mk([ps.clone().add(new THREE.Vector3(.05,.12,0)),
+      new THREE.Vector3(2.1,1.7,1.2),new THREE.Vector3(1.2,2.3,-.2),
+      gt.clone().add(new THREE.Vector3(.2,1.6,.2)),
+      gt.clone().add(new THREE.Vector3(-.2,1.2,.1))],'pcie');
+})();
+function refreshCables(){
+  const mbIn=byId.motherboard.state==='mounted';
+  cables.forEach(function(c){
+    if(c.need==='pcie')
+      c.mesh.visible=mbIn&&byId.psu.state==='mounted'&&byId.gpu.state==='mounted';
+    else
+      c.mesh.visible=mbIn&&byId.psu.state==='mounted';
+  });
+}
+
+/* =====================================================================
+   THE MONITOR — canvas framebuffer + physical model
+===================================================================== */
+const MON={on:false,collapse:0,elapsed:0,freeze:false,_blackUp:false,
+           osUp:0,lineMap:{},halted:null,inOs:false,led:null};
+(function(){
+  const g=new THREE.Group();
+  const foot=new THREE.Mesh(new THREE.BoxGeometry(1.1,.06,.7),Mt.alumDark);
+  foot.position.y=.03; g.add(foot);
+  const stand=new THREE.Mesh(new THREE.CylinderGeometry(.1,.2,.46,16),Mt.alumDark);
+  stand.position.y=.28; g.add(stand);
+  const cnv=document.createElement('canvas'); cnv.width=1024; cnv.height=600;
+  MON.ctx=cnv.getContext('2d');
+  MON.tex=new THREE.CanvasTexture(cnv);
+  MON.tex.encoding=THREE.sRGBEncoding;
+  const bez=boxAt(2.24,1.36,.07,
+    new THREE.MeshStandardMaterial({color:0x0e1012,roughness:.45,metalness:.2}),0,1.06,0);
+  bez.castShadow=true; g.add(bez);
+  const scr=new THREE.Mesh(new THREE.PlaneGeometry(2.08,1.22),
+    new THREE.MeshBasicMaterial({map:MON.tex}));
+  scr.position.set(0,1.06,.036); g.add(scr);
+  const ledM=new THREE.Mesh(new THREE.CircleGeometry(.024,12),
+    new THREE.MeshBasicMaterial({color:0x303030}));
+  ledM.position.set(.98,-.60,.038); g.add(ledM); MON.led=ledM.material;
+  g.position.set(-5.05,0,-1.05);
+  g.rotation.y=1.94;
+  scene.add(g);
+  scOff();
+})();
+function monSetLed(col){if(MON.led)MON.led.color.setHex(col);}
+
+function scText(s,x,y,col,size,bold){
+  const g=MON.ctx;
+  g.font=(bold?'700 ':'400 ')+(size||22)+'px '+FONT;
+  g.textAlign='left'; g.textBaseline='alphabetic';
+  g.fillStyle=col||'#c9cdd2';
+  g.fillText(s,x,y);
+}
+function scBase(bg){
+  const g=MON.ctx;
+  g.fillStyle=bg||'#020304'; g.fillRect(0,0,1024,600);
+  const gr=g.createLinearGradient(0,0,300,600);
+  gr.addColorStop(0,'rgba(255,255,255,.045)');
+  gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr; g.fillRect(0,0,1024,600);
+  g.fillStyle='rgba(255,255,255,.018)';
+  for(let y=0;y<600;y+=4)g.fillRect(0,y,1024,1);
+}
+function scFooter(t){scText(t,52,556,'#6d747c',19);}
+function scHwm(temp){
+  const g=MON.ctx,x=800,y=18,w=204,h=54;
+  g.fillStyle='rgba(0,0,0,.55)'; g.fillRect(x,y,w,h);
+  g.strokeStyle=temp>92?(Math.floor(MON.elapsed*4)%2?'#ff4a3c':'#7a201a'):
+    (temp>78?'#ffb454':'#39424a');
+  g.lineWidth=2; g.strokeRect(x,y,w,h);
+  scText('CPU',x+10,y+36,'#8d9298',19,true);
+  const tc=temp>92?'#ff4a3c':(temp>78?'#ffb454':'#9fd8ae');
+  scText(temp.toFixed(0)+' C',x+62,y+37,tc,26,true);
+  const f=Math.max(0,Math.min(1,(temp-30)/72));
+  g.fillStyle='#20262b'; g.fillRect(x+150,y+12,44,34);
+  g.fillStyle=tc; g.fillRect(x+150,y+46-34*f,44,34*f);
+}
+function scPostFrame(){
+  scBase('#020305');
+  let y=64;
+  const L=MON.lineMap;
+  if(L.banner){
+    scText('Build/Bench UEFI v2.8.1 · APEX AX9 REV 3.2',52,y,'#e8e4da',24,true); y+=34;
+    scText('(c) 2024 Build/Bench Technologies Inc.',52,y,'#6d747c',19); y+=30;
+  }
+  if(L.cpu){
+    scText(L.cpu.label,52,y,L.cpu.ok?'#c9cdd2':'#ff6a5e',22,!L.cpu.ok);
+    if(L.cpu.value)scText(L.cpu.value,340,y,L.cpu.ok?'#9fd8ae':'#ff6a5e',22,true);
+    y+=34;
+    if(!L.cpu.ok){
+      scText('Fatal Error — System Halted.',52,y,'#ff6a5e',22,true); y+=34;
+      scFooter('Q-CODE 00 · diagnostic beeps sounded');
+    }
+  }
+  if(L.memHead){scText(L.memHead,52,y,'#c9cdd2',22); y+=34;}
+  if(L.memVal){
+    scText(L.memVal.text,90,y,L.memVal.done?'#c9cdd2':'#ffb454',22); y+=32;
+    if(L.memVal.note){
+      scText(L.memVal.note,90,y,L.memVal.good?'#9fd8ae':'#ffb454',19,true); y+=30;
+    }
+  }
+  if(L.memErr){
+    scText(L.memErr,52,y,'#ff6a5e',24,true); y+=36;
+    scText('System Halted.',52,y,'#ff6a5e',22,true); y+=34;
+    scFooter('Q-CODE C1 · DRAM init failure');
+  }
+  if(L.pcieHead){scText(L.pcieHead,52,y,'#c9cdd2',22); y+=34;}
+  if(L.gpu){
+    scText(L.gpu.label,52,y,'#c9cdd2',22);
+    scText(L.gpu.value,360,y,L.gpu.vortex?'#ffb454':'#8d9298',21,true); y+=34;
+  }
+  if(L.drives){
+    L.drives.forEach(function(d){
+      scText(d.label,52,y,'#c9cdd2',22);
+      scText(d.value,300,y,d.ok?'#9fd8ae':'#6d747c',21,true); y+=30;
+    });
+    y+=8;
+  }
+  if(L.bar!=null){
+    const seg=26,f=Math.floor(seg*L.bar);
+    scText('['+'█'.repeat(f)+'·'.repeat(seg-f)+']  Launching BUILD/OS 5.1 …',
+      52,y,'#e8e4da',24,true);
+  }
+  if(L.noBoot){
+    y=Math.max(y,380);
+    scText('Reboot and Select proper Boot Device',52,y,'#e8e4da',26,true); y+=40;
+    scText('or Insert Boot Media'+(Math.floor(MON.elapsed*2)%2?'_':' '),52,y,'#c9cdd2',26);
+    scFooter('Q-CODE 92 · press ⏻ to power off');
+  }
+  if(TH.powered)scHwm(TH.temp);
+}
+function scOverheat(){
+  scBase('#050203');
+  const bl=Math.floor(MON.elapsed*3)%2;
+  scText('!! CPU OVERTEMPERATURE ERROR',52,120,bl?'#ff6a5e':'#c9402f',34,true);
+  scText('Package junction exceeded Tj-max (100 C).',52,168,'#ffb3ab',22);
+  scText('The board cut power to protect the silicon.',52,198,'#ffb3ab',22);
+  scText('Fix: seat the tower cooler on the socket,',52,256,'#c9cdd2',22);
+  scText('then press POWER ON again.',52,284,'#c9cdd2',22);
+  scFooter('Q-CODE EA · thermal protection trip');
+  scHwm(TH.temp);
+}
+function scDesktop(){
+  const g=MON.ctx;
+  const gr=g.createLinearGradient(0,0,1024,600);
+  gr.addColorStop(0,'#0c1218'); gr.addColorStop(.55,'#131b22'); gr.addColorStop(1,'#0a0f13');
+  g.fillStyle=gr; g.fillRect(0,0,1024,600);
+  g.beginPath(); g.arc(770,150,120,0,7);
+  g.fillStyle='rgba(255,180,84,.06)'; g.fill();
+  g.beginPath(); g.arc(770,150,86,0,7);
+  g.fillStyle='rgba(255,180,84,.06)'; g.fill();
+  scText('BENCH/OS 5.1',60,140,'#e8e4da',44,true);
+  scText('AX-9700F · 8C/16T @ 4.7 GHz   ·   '+
+    ((byId.ram1.state==='mounted'&&byId.ram2.state==='mounted')?
+      '32 GB DDR5-6000 dual-channel':'single-channel config'),
+    60,176,'#8d9298',19);
+  scText(byId.gpu.state==='mounted'
+    ?'Display : VORTEX RTX-4870'
+    :'Display : integrated DX-770',
+    60,204,'#8d9298',19);
+  const d=new Date();
+  const pad=function(n){return String(n).padStart(2,'0');};
+  scText(pad(d.getHours())+':'+pad(d.getMinutes()),690,306,'rgba(232,228,218,.85)',72,true);
+  scText(d.toDateString(),660,336,'#6d747c',19);
+  g.fillStyle='rgba(255,255,255,.07)'; g.fillRect(0,552,1024,48);
+  scText('◉ BUILD/OS',24,582,'#e8e4da',19,true);
+  scText('uptime '+Math.floor(MON.osUp/60)+':'+pad(Math.floor(MON.osUp%60))+
+    '   ·   CPU '+TH.temp.toFixed(0)+' C',800,582,'#8d9298',17);
+  g.fillStyle='rgba(255,255,255,.018)';
+  for(let y2=0;y2<600;y2+=4)g.fillRect(0,y2,1024,1);
+}
+/* OFF is ALWAYS pure black — any power-down funnels here */
+function scOff(){
+  const g=MON.ctx;
+  g.fillStyle='#000';
+  g.fillRect(0,0,1024,600);
+}
+function scCollapse(k){
+  const g=MON.ctx; g.fillStyle='#000'; g.fillRect(0,0,1024,600);
+  g.save(); g.translate(0,300);
+  g.scale(Math.max(.001,1-k),Math.max(.002,1-k));
+  g.fillStyle='#cfe6ff'; g.fillRect(0,-3,1024,6);
+  g.restore();
+}
+
+/* =====================================================================
+   BOOT ENGINE — one flat timeline per configuration, one master clock
+===================================================================== */
+const BT={steps:[],i:0,active:false,memT0:0,memT1:0,memTotal:0,barT0:0,barT1:0};
+
+function bootTimelineBuild(cfg){
+  const S=[];
+  const L={}; MON.lineMap=L;
+  const step=function(t,f){S.push({t:t,f:f});};
+
+  step(.05,function(){tone(90,0,.12,'sine',.05);});
+  step(.25,function(){L.banner=true;qcodeDraw('00');});
+  step(.70,function(){
+    L.cpu={label:'Detecting CPU type ...'};
+    qcodeDraw('01');
+  });
+  step(1.10,function(){
+    L.cpu={label:'Processor :',value:'AX-9700F 8C/16T @ 4.70 GHz  OK',ok:true};
+  });
+
+  if(!cfg.rams){
+    step(1.45,function(){
+      L.memHead='Memory Initialization ... (DDR5)';
+      qcodeDraw('03');
+    });
+    step(2.10,function(){
+      L.memErr='Memory Training Failure — no usable DIMM found.';
+      beepPattern(3);
+      qcodeDraw('C1');
+      setChip('HALT · MEM ERR','#ff6a5e');
+      monSetLed(0xff5a4e);
+    });
+  }else{
+    const total=cfg.rams===2?32768:16384;
+    step(1.45,function(){
+      L.memHead='Memory Initialization ... (DDR5)';
+      qcodeDraw('03');
+    });
+    step(1.75,function(){
+      L.memVal={text:'Testing Memory : 0 MB',done:false,note:null,good:false};
+      BT.memT0=1.75; BT.memT1=3.30; BT.memTotal=total;
+      qcodeDraw('34');
+    });
+    step(3.30,function(){
+      L.memVal.done=true;
+      if(cfg.rams===2){
+        L.memVal.note='Dual-Channel Interleave : Enabled  OK';
+        L.memVal.good=true;
+      }else{
+        L.memVal.note='Single-Channel — pair DIMMs A2+B2 for bandwidth';
+        L.memVal.good=false;
+      }
+    });
+    step(3.45,function(){L.pcieHead='Enumerating PCI devices ...';qcodeDraw('0D');});
+    step(3.75,function(){
+      if(cfg.gpu){
+        L.gpu={label:'PCIE5_X16_1 :',value:'VORTEX RTX-4870 · 12288 MB',vortex:true};
+      }else{
+        L.gpu={label:'PCIE5_X16_1 : empty — falls back to',
+               value:'iGPU DX-770',vortex:false};
+      }
+    });
+    step(4.00,function(){
+      L.drives=[
+        {label:'M2A_SB :',value:cfg.ssd?'METEOR 1 TB NVMe PCIe4x4  OK':'— (empty)',ok:cfg.ssd},
+        {label:'USB / LAN :',value:'ready  OK',ok:true}
+      ];
+    });
+
+    if(cfg.ssd){
+      step(4.40,function(){
+        BT.barT0=4.40; BT.barT1=5.90;
+        L.bar=0;
+        qcodeDraw('A2');
+      });
+      step(5.90,function(){
+        MON.inOs=true;
+        MON.osUp=0;
+        L.bar=null;
+        BT.barT0=0; BT.barT1=0;
+        qcodeDraw('AA');
+        setChip('RUNNING','#69d48b');
+        monSetLed(0x69d48b);
+        const n=['motherboard','cpu','cooler','ram1','ram2','ssd','gpu','psu']
+          .filter(function(id){return byId[id].state==='mounted';}).length;
+        toast(n===8?'FULL BOOT — desktop ready. All eight components verified.'
+          :'Desktop ready — hardware incomplete (see BUILD ORDER)','good','bootdone');
+        pwLabel();
+      });
+    }else{
+      step(4.40,function(){
+        L.noBoot=true;
+        qcodeDraw('92');
+        setChip('NO BOOT DEVICE','#ffb454');
+        monSetLed(0xffb454);
+        pwLabel();
+      });
+    }
+  }
+  BT.steps=S; BT.i=0; BT.active=true;
+}
+
+/* ============================ SYSTEM RUNTIME ============================ */
+const SYS={state:'off'};
+const TH={temp:32,powered:false,trip:false};
+let fanLevel=0,fanTarget=0;
+
+const $dot=document.getElementById('sysdot'),$txt=document.getElementById('systxt');
+function setChip(label,color){
+  $txt.textContent=label;
+  $dot.style.background=color||'#4a4f54';
+}
+function toast(msg,kind,key){
+  const wrap=document.getElementById('toasts');
+  let el=key?wrap.querySelector('[data-key="'+key+'"]'):null;
+  if(!el){
+    el=document.createElement('div');
+    if(key)el.dataset.key=key;
+    wrap.appendChild(el);
+  }
+  /* ALWAYS write the message, new or recycled */
+  el.textContent=msg;
+  el.className='toast'+(kind?' '+kind:'');
+  el.style.transition='';
+  el.style.opacity='';
+  clearTimeout(el._t);
+  /* restart the slide-in so refires don't look dead */
+  el.style.animation='none';
+  void el.offsetWidth;
+  el.style.animation='';
+  el._t=setTimeout(function(){
+    el.style.transition='opacity .4s'; el.style.opacity='0';
+    setTimeout(function(){el.remove();},450);
+  },3600);
+}
+
+const SND={ctx:null,muted:false};
+function actx(){
+  if(!SND.ctx){
+    try{SND.ctx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  }
+  return SND.ctx;
+}
+function tone(f,t0,dur,type,vol){
+  const c=actx(); if(!c||SND.muted)return;
+  const o=c.createOscillator(),gn=c.createGain();
+  o.type=type||'square'; o.frequency.value=f;
+  gn.gain.setValueAtTime(vol||.06,c.currentTime+t0);
+  gn.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t0+dur);
+  o.connect(gn); gn.connect(c.destination);
+  o.start(c.currentTime+t0); o.stop(c.currentTime+t0+dur+.02);
+}
+function softBlip(f){tone(f,0,.06,'triangle',.04);}
+function beepPattern(n){for(let i=0;i<n;i++)tone(n===1?880:587,i*.28,.14);}
+
+function killElectrics(){
+  TH.powered=false; TH.trip=false;
+  SYS.state='off';
+  fanTarget=0;
+  GPUSTRIP&&(GPUSTRIP.emissiveIntensity=0);
+  RAMBARS.forEach(function(m){m.emissiveIntensity=0;m.emissive.setHex(0x000000);});
+  window.__powerBtn.ring.material.emissive.setHex(0x223038);
+  setChip('SYSTEM OFF','#4a4f54');
+  monSetLed(0x303030);
+  pwLabel();
+}
+/* Every shutdown passes through here; the monitor ALWAYS ends black. */
+function stopPower(opts){
+  opts=opts||{};
+  killElectrics();
+  BT.active=false; BT.steps=[]; BT.i=0;
+  MON.inOs=false; MON.freeze=false; MON.halted=null;
+  MON.on=false;
+  if(opts.crt){
+    MON.collapse=0.0001;            /* play the collapse, end on enforced black */
+  }else{
+    MON.collapse=1;                 /* instantly blank */
+    scOff();
+  }
+  qcodeDraw('--');
+}
+function gracefulService(reason){
+  if(!TH.powered)return;
+  stopPower({crt:true});
+  toast(reason,'warn','service');
+}
+function shutdownByUser(){
+  if(SYS.state==='off'){softBlip(240);return;}
+  stopPower({crt:true});
+  tone(392,0,.08,'square',.03);
+}
+function attemptPower(){
+  actx();
+  const c=SND.ctx; if(c&&c.state==='suspended')c.resume();
+  if(holding)endHold(false);
+  const st=function(id){return byId[id].state==='mounted';};
+
+  if(!st('psu')){
+    toast('You press the button — dead nothing. No PSU is connected.','warn','nopwr');
+    tone(150,0,.07,'square',.03);
+    return;
+  }
+  if(!st('motherboard')){
+    toast('Click. Nothing wake-able — the board is not seated.','warn','nopwr');
+    tone(150,0,.07,'square',.03);
+    return;
+  }
+
+  /* power rails come up — label NOW; every branch below inherits it */
+  SYS.state='on';
+  TH.powered=true; TH.trip=false;
+  MON.on=true; MON.freeze=false; MON.halted=null; MON.inOs=false;
+  MON.elapsed=0; MON.collapse=0; MON._blackUp=false;
+  BT.active=false;
+  fanTarget=.25;
+  pwLabel();
+
+  if(GPUSTRIP)GPUSTRIP.emissiveIntensity=.6;
+  RAMBARS.forEach(function(m,i){m.emissive.setHSL(.55+i*.09,.5,.4);m.emissiveIntensity=.5;});
+  window.__powerBtn.ring.material.emissive.setHex(0x69d48b);
+  monSetLed(0x69d48b);
+
+  if(!st('cpu')){
+    setChip('NO POST','');
+    toast('Fans stutter… then silence. No processor — nothing to POST.','warn','nopwr');
+    const gOk=function(){return SYS.state==='on'&&byId.cpu.state!=='mounted';};
+    setTimeout(function(){ if(gOk())stopPower({}); },1600);
+    return;
+  }
+
+  fanTarget=1;
+  const ramN=(st('ram1')?1:0)+(st('ram2')?1:0);
+  setChip('POST …','#69d48b');
+  bootTimelineBuild({
+    rams:ramN,
+    gpu:st('gpu'),
+    ssd:st('ssd')
+  });
+}
+function overTempTrip(){
+  if(!TH.powered||TH.trip)return;
+  TH.trip=true;
+  tone(233,0,.55,'sawtooth',.07);
+  tone(233,.7,.55,'sawtooth',.07);
+  tone(175,1.4,.8,'sawtooth',.06);
+  MON.halted='overheat';
+  qcodeDraw('EA');
+  setChip('OVERHEAT','#ff6a5e'); monSetLed(0xff5a4e);
+  /* hold the alarm so it's readable, then a NORMAL shutdown:
+     collapse + guaranteed blank, rails off, one press to reboot */
+  setTimeout(function(){
+    if(!TH.trip)return;
+    stopPower({crt:true});
+  },1400);
+}
+
+document.getElementById('cancelpick').insertAdjacentHTML('afterend',
+ '<button id="pw" class="mono" style="position:fixed;right:22px;bottom:22px;z-index:10;'
+ +'letter-spacing:.18em;font-size:11px;padding:11px 20px;border-radius:3px;cursor:pointer;'
+ +'border:1px solid var(--line);background:var(--panel);color:var(--ink)">'
+ +'⏻&nbsp;&nbsp;POWER&nbsp;ON</button>');
+const pwBtn=document.getElementById('pw');
+function pwLabel(){
+  pwBtn.innerHTML=SYS.state==='off'
+    ?'⏻&nbsp;&nbsp;POWER&nbsp;ON'
+    :'⏻&nbsp;&nbsp;SHUT&nbsp;DOWN';
+}
+pwLabel();
+pwBtn.onclick=function(){
+  if(SYS.state==='off')attemptPower(); else shutdownByUser();
+};
+
+/* ============================ RULES ============================ */
+function whyNot(id){
+  const st=function(x){return byId[x].state==='mounted';};
+  if(['cpu','cooler','ram1','ram2','ssd','gpu'].indexOf(id)>=0
+     &&!st('motherboard'))return 'Seat the motherboard on the standoffs first.';
+  if(id==='cooler'&&!st('cpu'))return 'Mount the CPU before dropping the cooler on it.';
+  if(id==='cpu'&&st('cooler'))return 'The cooler covers the socket — remove it first.';
+  return null;
+}
+function disallowRemoval(id){
+  const st=function(x){return byId[x].state==='mounted';};
+  if(id==='cpu'&&st('cooler'))return 'Detach the cooler before pulling the CPU.';
+  if(id==='motherboard'){
+    const others=['cpu','cooler','ram1','ram2','ssd','gpu'].filter(st);
+    if(others.length)return 'Empty the board first (still has: '+others.join(', ')+')';
+  }
+  return null;
+}
+
+/* ============================ INTERACTION ============================ */
+const camState={az:-.65,el:.46,dist:9.8,tgt:new THREE.Vector3(-.6,1.15,0)};
+function applyCam(){
+  camState.el=Math.max(.14,Math.min(1.42,camState.el));
+  camState.dist=Math.max(4,Math.min(17,camState.dist));
+  camera.position.set(
+    camState.tgt.x+camState.dist*Math.cos(camState.el)*Math.cos(camState.az),
+    camState.tgt.y+camState.dist*Math.sin(camState.el),
+    camState.tgt.z+camState.dist*Math.cos(camState.el)*Math.sin(camState.az));
+  camera.lookAt(camState.tgt);
+}
+applyCam();
+
+const ray=new THREE.Raycaster(),ptr=new THREE.Vector2();
+const holdPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-2.45);
+const HOLD_Y=2.45,FLAT_SNAP=1.55;
+let hover=null,holding=null,orbitDrag=false,downXY=null,ptrDown=false,magnet=null;
+const nametag=document.getElementById('nametag');
+
+function compFromHit(o){
+  while(o){if(o.userData.pid)return o.userData.pid;o=o.parent;}
+  return null;
+}
+function setPtr(e){
+  ptr.x=e.clientX/innerWidth*2-1;
+  ptr.y=-(e.clientY/innerHeight)*2+1;
+}
+function pickPart(){
+  ray.setFromCamera(ptr,camera);
+  const hits=ray.intersectObjects(PARTS.map(function(p){return p.obj;}),true);
+  return hits.length?compFromHit(hits[0].object):null;
+}
+
+const bracketTex=ctex(256,256,function(g){
+  g.strokeStyle='#ffffff'; g.lineWidth=13; g.lineCap='round';
+  const L=64,P=10;
+  [[P,P,1,1],[246-P,P,-1,1],[P,246-P,1,-1],[246-P,246-P,-1,-1]].forEach(function(cp){
+    g.beginPath();
+    g.moveTo(cp[0]+cp[2]*L,cp[1]); g.lineTo(cp[0],cp[1]); g.lineTo(cp[0],cp[1]+cp[3]*L);
+    g.stroke();
+  });
+},false);
+const brackets=new THREE.Mesh(new THREE.PlaneGeometry(1.5,1.5),
+  new THREE.MeshBasicMaterial({map:bracketTex,transparent:true,opacity:.9,
+    depthTest:false,blending:THREE.AdditiveBlending}));
+brackets.visible=false; brackets.renderOrder=99; scene.add(brackets);
+
+function beginHold(id){
+  const p=byId[id];
+  if(p.state==='mounted'){
+    if(TH.powered)gracefulService('Hardware touched while running — safe shutdown.');
+    const rem=disallowRemoval(id);
+    if(rem){toast(rem,'warn','rule');return;}
+    p.state='held'; holding=id;
+    softBlip(180);
+    refreshCables();
+  }else{
+    const deny=whyNot(id);
+    if(deny){toast(deny,'warn','rule');return;}
+    p.state='held'; holding=id;
+    softBlip(520);
+  }
+  showHint('<kbd>CLICK</kbd> VALID SITE TO INSTALL · <kbd>RMB</kbd> / ✕ TO RETURN');
+  document.getElementById('cancelpick').style.display='block';
+  openInfo(p.def);
+}
+function endHold(installHere){
+  if(!holding)return;
+  const p=byId[holding];
+  holding=null;
+  brackets.visible=false; magnet=null;
+  document.getElementById('cancelpick').style.display='none';
+  if(installHere){
+    p.state='animating';
+    animMove(p.obj,p.def.anchor.pos,.38,easeBack,function(){
+      p.state='mounted';
+      softBlip(880);
+      refreshChecklist(); refreshCables();
+    });
+    animQuat(p.obj,p.def.anchor.quat,.38);
+    if(p.def.id==='ssd'){
+      const q1=new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI*.32,0,0));
+      const v1=p.def.anchor.pos.clone().add(new THREE.Vector3(0,.34,.12));
+      animMove(p.obj,v1,.22,easeOut,function(){
+        animQuat(p.obj,p.def.anchor.quat,.16);
+        animMove(p.obj,p.def.anchor.pos,.16,easeIn,null);
+      });
+      animQuat(p.obj,q1,.22);
+    }
+    if(p.def.id==='ram1'||p.def.id==='ram2')softBlip(760);
+  }else{
+    p.state='animating';
+    animMove(p.obj,p.def.tray,.45,easeOut,function(){p.state='tray';refreshCables();});
+    animQuat(p.obj,p.def.trayQ,.45);
+    softBlip(240);
+  }
+}
+
+const anims=[];
+function easeOut(t){return 1-Math.pow(1-t,3);}
+function easeIn(t){return t*t*t;}
+function easeBack(t){const c=1.7;t--;return 1+t*t*((c+1)*t+c);}
+function animMove(o,to,dur,ease,done){
+  const from=o.position.clone();
+  anims.push({t:0,dur:dur,ease:ease,done:done,
+    step:function(k){o.position.lerpVectors(from,to,k);}});
+}
+function animQuat(o,toQ,dur){
+  const from=o.quaternion.clone(),tq=toQ.clone();
+  anims.push({t:0,dur:dur,ease:easeOut,
+    step:function(k){o.quaternion.copy(from).slerp(tq,k);}});
+}
+
+canvas.addEventListener('contextmenu',function(e){e.preventDefault();});
+addEventListener('pointermove',function(e){
+  setPtr(e);
+  if(ptrDown&&!holding){
+    if(downXY&&Math.hypot(e.clientX-downXY.x,e.clientY-downXY.y)>5)orbitDrag=true;
+    if(orbitDrag&&downXY){
+      camState.az-=(e.clientX-downXY.x)*.0055;
+      camState.el+=(e.clientY-downXY.y)*.0045;
+      applyCam();
+      downXY={x:e.clientX,y:e.clientY};
+    }
+  }
+});
+canvas.addEventListener('pointerdown',function(e){
+  ptrDown=true; downXY={x:e.clientX,y:e.clientY}; orbitDrag=false; setPtr(e);
+  if(e.button===2&&holding)endHold(false);
+});
+addEventListener('pointerup',function(e){
+  if(e.button!==0){ptrDown=false;return;}
+  const wasDrag=orbitDrag;
+  ptrDown=false; orbitDrag=false;
+  if(wasDrag||!downXY)return;
+  setPtr(e);
+  if(holding){
+    ray.setFromCamera(ptr,camera);
+    const hp=new THREE.Vector3();
+    if(ray.ray.intersectPlane(holdPlane,hp)&&magnet&&magnet.valid)endHold(true);
+    else endHold(false);
+  }else{
+    const id=pickPart();
+    if(id)beginHold(id);
+  }
+});
+canvas.addEventListener('wheel',function(e){
+  camState.dist*=1+Math.sign(e.deltaY)*.09; applyCam();
+},{passive:true});
+document.getElementById('cancelpick').onclick=function(){endHold(false);};
+addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&holding)endHold(false);
+  if(e.key==='r'||e.key==='R'){
+    camState.az=-.65;camState.el=.46;camState.dist=9.8;applyCam();
+  }
+});
+
+/* ============================ UI ============================ */
+const ORDER=['motherboard','cpu','cooler','ram1','ram2','ssd','gpu','psu'];
+const $list=document.getElementById('stepList');
+ORDER.forEach(function(id,i){
+  const li=document.createElement('li'); li.dataset.id=id;
+  li.innerHTML='<span class="n">'+String(i+1).padStart(2,'0')+'</span>'+byId[id].def.short;
+  li.onclick=function(){focusPart(id);};
+  $list.appendChild(li);
+});
+function refreshChecklist(){
+  const done=ORDER.filter(function(id){return byId[id].state==='mounted';}).length;
+  document.getElementById('stepCount').textContent=done+' / '+ORDER.length;
+  Array.prototype.forEach.call($list.children,function(li){
+    if(li.dataset.id)li.classList.toggle('done',byId[li.dataset.id].state==='mounted');
+  });
+  let stamp=$list.querySelector('.stamp');
+  const all=ORDER.every(function(id){return byId[id].state==='mounted';});
+  if(all&&!stamp){
+    stamp=document.createElement('li');
+    stamp.className='stamp'; stamp.textContent='▸ SYSTEM READY';
+    $list.appendChild(stamp);
+  }
+  if(!all&&stamp)stamp.remove();
+}
+refreshChecklist();
+
+let camAnim=null;
+function focusPart(id){
+  const p=byId[id]; if(!p)return;
+  camAnim={from:camState.tgt.clone(),to:p.obj.position.clone(),t:0,dur:.6};
+  openInfo(p.def);
+}
+function showHint(html){document.getElementById('hint').innerHTML=html;}
+const info$=document.getElementById('info');
+function openInfo(def){
+  document.getElementById('infoCat').textContent=def.cat+' · SPEC SHEET';
+  document.getElementById('infoTitle').textContent=def.name;
+  document.getElementById('infoDesc').textContent=def.desc;
+  const sp=document.getElementById('infoSpecs'); sp.innerHTML='';
+  def.specs.forEach(function(pair){
+    const d=document.createElement('div');
+    d.innerHTML='<dt>'+pair[0]+'</dt><dd>'+pair[1]+'</dd>';
+    sp.appendChild(d);
+  });
+  document.getElementById('infoTip').innerHTML='<b>BUILDER’S NOTE — </b>'+def.tip;
+  info$.classList.add('open');
+}
+document.getElementById('infoClose').onclick=function(){info$.classList.remove('open');};
+document.getElementById('disall').onclick=function(){
+  if(holding)endHold(false);
+  if(SYS.state!=='off')stopPower({crt:true});
+  ['gpu','ssd','ram2','ram1','cooler','cpu','psu','motherboard'].forEach(function(id,i){
+    const p=byId[id];
+    if(p.state==='mounted'){
+      p.state='animating';
+      setTimeout(function(){
+        animMove(p.obj,p.def.tray,.4,easeOut,function(){p.state='tray';});
+        animQuat(p.obj,p.def.trayQ,.4);
+      },i*140);
+    }
+  });
+  toast('Teardown — components returned to the mat.','good','teardown');
+  setTimeout(function(){refreshChecklist();refreshCables();},1400);
+};
+document.getElementById('muteBtn').onclick=function(){
+  SND.muted=!SND.muted;
+  document.querySelector('#volIcon .wav').style.opacity=SND.muted?0:1;
+  this.style.color=SND.muted?'var(--bad)':'';
+};
+document.getElementById('helpBtn').onclick=function(){
+  toast('CLICK part to pick up · aim over its dock until brackets turn GREEN, CLICK to seat.'
+    +' The monitor runs a real POST — read it to diagnose faults.','good','help');
+};
+
+/* ============================ FRAME LOOP ============================ */
+const clock=new THREE.Clock();
+const tmpV=new THREE.Vector3();
+
+function thermalStep(dt){
+  const cool=byId.cooler.state==='mounted';
+  if(TH.powered&&cool){
+    TH.temp+=(61-TH.temp)*Math.min(1,dt*.55);
+  }else if(TH.powered&&!cool){
+    TH.temp+=dt*14;
+    if(!TH.trip&&TH.temp>=97)overTempTrip();
+  }else{
+    TH.temp+=(32-TH.temp)*Math.min(1,dt*.5);
+  }
+}
+
+function paintScreen(){
+  if(MON.inOs){scDesktop();return;}
+  if(MON.halted==='overheat'){scOverheat();return;}
+  if(MON.on){scPostFrame();return;}
+  scOff();
+}
+
+function loop(){
+  requestAnimationFrame(loop);
+  const dt=Math.min(clock.getDelta()),t=clock.elapsedTime;
+
+  for(let i=anims.length-1;i>=0;i--){
+    const a=anims[i]; a.t+=dt/a.dur;
+    a.step(a.ease(Math.min(a.t,1)));
+    if(a.t>=1){if(a.done)a.done();anims.splice(i,1);}
+  }
+  if(camAnim){
+    camAnim.t+=dt/camAnim.dur;
+    camState.tgt.lerpVectors(camAnim.from,camAnim.to,easeOut(Math.min(camAnim.t,1)));
+    if(camAnim.t>=1)camAnim=null;
+    applyCam();
+  }
+
+  /* hover */
+  if(!holding&&!ptrDown){
+    const id=pickPart();
+    if(id!==hover){hover=id;canvas.style.cursor=id?'grab':'default';}
+  }
+  if(hover&&!holding){
+    const p=byId[hover];
+    tmpV.copy(p.obj.position); tmpV.y+=1.1; tmpV.project(camera);
+    nametag.style.display='block';
+    nametag.style.left=((tmpV.x*.5+.5)*innerWidth)+'px';
+    nametag.style.top=((-tmpV.y*.5+.5)*innerHeight)+'px';
+    nametag.textContent=p.def.name.toUpperCase();
+  }else nametag.style.display='none';
+
+  /* magnetism */
+  magnet=null;
+  if(holding){
+    const p=byId[holding];
+    ray.setFromCamera(ptr,camera);
+    if(!ray.ray.intersectPlane(holdPlane,tmpV))tmpV.copy(p.obj.position);
+    tmpV.y=HOLD_Y+Math.sin(t*3.2)*.04;
+    const anch=p.def.anchor.pos;
+    const flat=Math.hypot(tmpV.x-anch.x,tmpV.z-anch.z);
+    const valid=flat<FLAT_SNAP&&(!p.def.ram||byId.motherboard.state==='mounted');
+    if(valid){
+      tmpV.lerp(anch,.5);
+      p.obj.quaternion.slerp(p.def.anchor.quat,.12);
+    }
+    p.obj.position.lerp(tmpV,.28);
+    magnet={valid:valid};
+    brackets.visible=true;
+    brackets.position.set(anch.x,anch.y+.55,anch.z);
+    brackets.lookAt(camera.position);
+    brackets.material.color.setHex(valid?0x69d48b:0xffb454);
+    brackets.material.opacity=.35+Math.sin(t*(valid?9:5))*.06;
+    const sc=valid?.8:1; brackets.scale.set(sc,sc,sc);
+  }
+
+  /* fans */
+  fanLevel+=(fanTarget-fanLevel)*Math.min(1,dt*2.2);
+  FANS.forEach(function(f,i){
+    if(f.userData.rotor)f.userData.rotor.rotation.z-=dt*(2+fanLevel*22)*(i%2?-1:1);
+  });
+
+  /* thermals */
+  thermalStep(dt);
+
+  /* RGB accents */
+  const hueBase=(t*.06)%1;
+  if(TH.powered&&!TH.trip){
+    RAMBARS.forEach(function(m,i){
+      m.emissive.setHSL((hueBase+i*.09)%1,.85,.55);
+      m.emissiveIntensity=1.2;
+    });
+    if(GPUSTRIP){
+      GPUSTRIP.emissive.setHSL((hueBase+.5)%1,.8,.5);
+      GPUSTRIP.emissiveIntensity=.9;
+    }
+    ledStrip.material.emissive.setHex(0xffb454);
+    ledStrip.material.emissiveIntensity=1.4+Math.sin(t*4)*.3;
+  }else if(TH.trip){
+    ledStrip.material.emissive.setHex(0xff4438);
+    ledStrip.material.emissiveIntensity=Math.max(0,Math.sin(t*9))*2;
+  }else{
+    ledStrip.material.emissiveIntensity*=.9;
+  }
+  window.__powerBtn.ring.material.emissiveIntensity=
+    SYS.state==='off'?(.5+Math.sin(t*2)*.2):1.2;
+
+  /* ---- SCREEN: single flow; texture upload can never be skipped ---- */
+  try{
+    if(MON.collapse>0){
+      /* shutting down: animate the collapse, then ENFORCE black every frame */
+      if(MON.collapse<1){
+        MON.collapse=Math.min(1,MON.collapse+dt*3.2);
+        if(MON.collapse<1)scCollapse(MON.collapse);
+        else scOff();
+      }else{
+        scOff();
+      }
+      MON.tex.needsUpdate=true;
+      MON._blackUp=false;
+    }else{
+      /* advance the master clock while powered */
+      if(TH.powered&&!MON.freeze&&(BT.active||MON.inOs)){
+        MON.elapsed+=dt;
+        if(BT.active){
+          while(BT.i<BT.steps.length&&BT.steps[BT.i].t<=MON.elapsed){
+            BT.steps[BT.i].f(); BT.i++;
+          }
+        }
+        const L=MON.lineMap;
+        if(BT.active&&L.memVal&&!L.memVal.done&&MON.elapsed<BT.memT1){
+          const k=Math.max(0,Math.min(1,(MON.elapsed-BT.memT0)/(BT.memT1-BT.memT0)));
+          L.memVal.text='Testing Memory : '+Math.floor(BT.memTotal*k)+' MB';
+        }
+        if(BT.active&&BT.barT1>BT.barT0&&L.bar!=null){
+          const k=Math.max(0,Math.min(1,(MON.elapsed-BT.barT0)/(BT.barT1-BT.barT0)));
+          L.bar=k;
+        }
+      }
+      if(MON.inOs)MON.osUp+=dt;
+      paintScreen();
+
+      /* upload when live; upload ONCE when settled black (perf courtesy) */
+      const idleBlank=(!MON.on&&!MON.inOs&&!TH.powered);
+      if(idleBlank){
+        if(!MON._blackUp){MON.tex.needsUpdate=true;MON._blackUp=true;}
+      }else{
+        MON.tex.needsUpdate=true;
+        MON._blackUp=false;
+      }
+    }
+  }catch(err){
+    qcodeDraw('FF');
+    console.error('[monitor]',err);
+  }
+
+  renderer.render(scene,camera);
+}
+loop();
+
+addEventListener('resize',function(){
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+setTimeout(function(){
+  toast('Welcome to the bench. Mount bay 01 first — then POWER ON and read the screen.','good','welcome');
+},700);
+</script>
+</body>
+</html>
